@@ -20,6 +20,8 @@ parameters as selected template layer.
 
 */
 
+// TODO fix keyframes between frames
+
 var SRTFile = File.openDialog("Select SRT file", "SRT Subtitles:*.srt,All files:*.*");
 var SRTFileName = "";
 var subNumber = 0;
@@ -27,7 +29,7 @@ var lineNumber = 0;
 var templateSubLayer = null;
 var newSubLayer = null;
 var newSourceText = "";
-var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText]
+var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText, completeSegment, reachedEOF]
 
 if (SRTFile != null) {
   SRTFile.open("r");
@@ -43,14 +45,28 @@ if (SRTFile != null) {
     newSubLayer.name = SRTFileName;
     newSourceText = newSubLayer.property("ADBE Text Properties").property("ADBE Text Document");
     removeAllKeyframesFromProperty(newSourceText);
-    subtitleSegment = readNextSubFromFile(SRTFile);
-    addSubtitleKeyframesToLayer(subtitleSegment, newSubLayer);
-    // TODO enable new layer
-    // TODO set empty subtitle at start
+    do {
+      subtitleSegment = readNextSubFromFile(SRTFile);
+      addSubtitleKeyframesToLayer(subtitleSegment, newSubLayer);
+    } while ((subtitleSegment[4]) && !(subtitleSegment[5]));
+    // repeat as long as complete segment can be read and we didn't reach EOF
+    newSubLayer.enabled = true;
+    addEmptyKeyframeAtStart(newSubLayer);
+    setLayerOutToLastTextKeyframe(newSubLayer);
+    setCompEnd(newSubLayer);
   }
-
   SRTFile.close();
   app.endUndoGroup();
+}
+
+/*
+txtLayer (TextLayer)
+Writes keyframe with no text at layer start. Otherwise some text might apppear
+before the first keyframe.
+*/
+function addEmptyKeyframeAtStart(txtLayer) {
+  var sourceText = txtLayer.property("ADBE Text Properties").property("ADBE Text Document");
+  sourceText.setValueAtTime(0, "");
 }
 
 /*
@@ -59,7 +75,7 @@ OutTime and subtitle text.
 txtLayer (TextLayer)
 Adds keyframes with subtitle text at specified time.
 */
-function addSubtitleKeyframesToLayer (subtitleSegment, txtLayer) {
+function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer) {
   var inIndex = 0;
   var outIndex = 0;
   var inTime = subtitleSegment[1];
@@ -101,6 +117,25 @@ function setLayerInToCompStart(layer, comp) {
   layer.inPoint = comp.displayStartTime;
 }
 
+/*
+TODO write description
+TODO remove +1 offset and warn if comp is extended.
+*/
+function setCompEnd(txtLayer) {
+  var comp = txtLayer.containingComp;
+  var lastKeyIndex = txtLayer.property("ADBE Text Properties").property("ADBE Text Document").numKeys;
+  if (lastKeyIndex != 0) {
+    var lastKeyTime = txtLayer.property("ADBE Text Properties").property("ADBE Text Document").keyTime(lastKeyIndex);
+    comp.duration = lastKeyTime - comp.workAreaStart + 1;
+    return true;
+  } else {
+    return false;
+  }
+}
+
+/*
+TODO write description
+*/
 function setLayerOutToLastTextKeyframe(txtLayer) {
   var lastKeyIndex = txtLayer.property("ADBE Text Properties").property("ADBE Text Document").numKeys;
   if (lastKeyIndex != 0) {
@@ -201,22 +236,58 @@ function removeAllKeyframesFromProperty(property) {
   }
 }
 
+/*
+TODO write description
+*/
 function readNextSubFromFile(activeSRTFile) {
-  //TODO Ignore empty lines before subID
-  //TODO While not EOF
   var buffer = "";
-  var subID = activeSRTFile.readln();
-  var SRTTimestamp = activeSRTFile.readln();
-  var timestamp = convertSRTTimestamp(SRTTimestamp);
-  var subtitleLine;
+  var subID = 0;
+  var SRTTimestamp = "";
   var subtitleText = "";
   var currentSubtitle = [];
-  subtitleLine = activeSRTFile.readln();
-  while ((subtitleLine != "") || activeSRTFile.eof) {
-    subtitleText += (subtitleText == "") ? subtitleLine : "\n" + subtitleLine;
-    subtitleLine = activeSRTFile.readln();
+  var numPattern = /^\d+$/;
+  var timeStampPattern = /^[\d:,\ ->]+$/;
+  var completeSegment = false;
+  var reachedEOF = false;
+  var step = 0; // 0 - subID; 1 - timestamp; 2 - subtitletext; 3 - end of sub
+
+  while (!(activeSRTFile.eof) && (step != 3)) {
+    buffer = activeSRTFile.readln();
+    switch (step) {
+      case 0: // look for subID
+      if (stripWhitespace(buffer) == "") break;
+      if (numPattern.test(buffer)) {
+        subID = buffer;
+        step = 1;
+      } else {
+        alert("Next subID not found!");
+        step = 99;
+      }
+      break;
+
+      case 1: // look for timestamp
+      if (timeStampPattern.test(buffer)) {
+        SRTTimestamp = buffer;
+        step = 2;
+      } else {
+        alert("Incorrect time stamp!");
+        step = 98;
+      }
+      break;
+
+      case 2: // read subtitle text
+      if (stripWhitespace(buffer) == "") {
+        step = 3;
+        if (subtitleText != "") completeSegment = true;
+      } else {
+        subtitleText += (subtitleText == "") ? buffer : "\n" + buffer;
+      }
+      break;
+    }
   }
-  currentSubtitle = [subID, timestamp[0], timestamp[1], subtitleText];
+  reachedEOF = activeSRTFile.eof;
+  var timestamp = convertSRTTimestamp(SRTTimestamp);
+  currentSubtitle = [subID, timestamp[0], timestamp[1], subtitleText, completeSegment, reachedEOF];
   return currentSubtitle;
 }
 
