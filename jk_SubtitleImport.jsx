@@ -22,7 +22,7 @@ parameters as selected template layer.
 
 // TODO fix keyframes between frames
 
-var SRTFile = File.openDialog("Select SRT file", "SRT Subtitles:*.srt,All files:*.*");
+var SRTFile = null;
 var SRTFileName = "";
 var subNumber = 0;
 var lineNumber = 0;
@@ -31,6 +31,31 @@ var newSubLayer = null;
 var newSourceText = "";
 var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText, completeSegment, reachedEOF]
 
+var w = new Window("palette");
+  w.grpAlign = w.add("group");
+    w.grpAlign.add("statictext", undefined, "Alignment", {characters: 20, justify: "right"});
+    var dropAlign = w.grpAlign.add("dropdownlist", undefined, ["Top", "Middle", "Bottom"]);
+    dropAlign.selection = 1;
+  w.grpRounding = w.add("group");
+    w.grpRounding.add('statictext {text: "Keyframe rounding"}');
+    var dropRounding = w.grpRounding.add("dropdownlist", undefined, ["Round up", "Round down", "Round math", "No rounding"]);
+    dropRounding.selection = 2;
+  w.grpExtend = w.add("group");
+    w.grpExtend.add('statictext {text: "Extend timeline"}');
+    var dropExtend = w.grpExtend.add("dropdownlist", undefined, ["Don't extend", "Extend till last keyframe", "Extend 5 sec past last keyframe"]);
+    dropExtend.selection = 0;
+  w.grpButtons = w.add("group");
+    w.grpButtons.butGo = w.add("button", undefined, "Go!");
+//  w.grpStatus = w.add("group");
+
+  // w.grpButtons.butGo.onClick = dropAlert;
+w.show();
+
+w.grpButtons.butGo.onClick = main;
+
+
+function main() {
+  SRTFile = File.openDialog("Select SRT file", "SRT Subtitles:*.srt,All files:*.*");
 if (SRTFile != null) {
   SRTFile.open("r");
   SRTFile.encoding = "UTF-8";
@@ -40,6 +65,7 @@ if (SRTFile != null) {
   if (checkIfTextLayerIsSelected() != false) {
     templateSubLayer = checkIfTextLayerIsSelected();
     newSubLayer = templateSubLayer.duplicate();
+    newSubLayer.moveToBeginning();
     templateSubLayer.enabled = false;
     templateSubLayer.selected = false;
     newSubLayer.name = SRTFileName;
@@ -58,7 +84,7 @@ if (SRTFile != null) {
   SRTFile.close();
   app.endUndoGroup();
 }
-
+}
 /*
 txtLayer (TextLayer)
 Writes keyframe with no text at layer start. Otherwise some text might apppear
@@ -119,14 +145,14 @@ function setLayerInToCompStart(layer, comp) {
 
 /*
 TODO write description
-TODO remove +1 offset and warn if comp is extended.
+TODO warn if comp is extended.
 */
 function setCompEnd(txtLayer) {
   var comp = txtLayer.containingComp;
   var lastKeyIndex = txtLayer.property("ADBE Text Properties").property("ADBE Text Document").numKeys;
   if (lastKeyIndex != 0) {
     var lastKeyTime = txtLayer.property("ADBE Text Properties").property("ADBE Text Document").keyTime(lastKeyIndex);
-    comp.duration = lastKeyTime - comp.workAreaStart + 1;
+    if (comp.duration < lastKeyTime) comp.duration = lastKeyTime - comp.workAreaStart;
     return true;
   } else {
     return false;
