@@ -66,26 +66,46 @@ if (SRTFile != null) {
   if (checkIfTextLayerIsSelected() != false) {
     templateSubLayer = checkIfTextLayerIsSelected();
     fps = templateSubLayer.containingComp.frameRate;
-    newSubLayer = templateSubLayer.duplicate();
-    newSubLayer.moveToBeginning();
-    templateSubLayer.enabled = false;
-    templateSubLayer.selected = false;
-    newSubLayer.name = SRTFileName;
-    newSourceText = newSubLayer.property("ADBE Text Properties").property("ADBE Text Document");
-    removeAllKeyframesFromProperty(newSourceText);
+    newSubLayer = duplicateAndResetLayer(templateSubLayer, SRTFileName);
+    // newSubLayer = templateSubLayer.duplicate();
+    // newSubLayer.moveToBeginning();
+    // templateSubLayer.enabled = false;
+    // templateSubLayer.selected = false;
+    // newSubLayer.name = SRTFileName;
+    newSourceText = newSubLayer.property("ADBE Text Properties").property("ADBE Text Document"); // redundant?
+    // removeAllKeyframesFromProperty(newSourceText);
+    // removeAllKeyframesFromProperty(newSubLayer.property("ADBE Anchor Point"));
     do {
       subtitleSegment = readNextSubFromFile(SRTFile);
       addSubtitleKeyframesToLayer(subtitleSegment, newSubLayer);
     } while ((subtitleSegment[4]) && !(subtitleSegment[5]));
     // repeat as long as complete segment can be read and we didn't reach EOF
     newSubLayer.enabled = true;
-    addEmptyKeyframeAtStart(newSubLayer);
+    // addEmptyKeyframeAtStart(newSubLayer);
     setLayerOutToLastTextKeyframe(newSubLayer);
     setCompEnd(newSubLayer);
   }
   SRTFile.close();
   app.endUndoGroup();
 }
+}
+
+/*
+templateLayer (TextLayer) - reference Text Layer to be used as subtitle template
+newName (String) - name for a new layer
+Duplicates the template layer, hides it, and removes anchor and source text
+keyframes from the new one.
+*/
+function duplicateAndResetLayer(templateLayer, newName) {
+  var newLayer = templateLayer.duplicate();
+  newLayer.moveToBeginning();
+  templateLayer.enabled = false;
+  templateLayer.selected = false;
+  newLayer.name = newName;
+  removeAllKeyframesFromProperty(newLayer.property("ADBE Text Properties").property("ADBE Text Document"));
+  removeAllKeyframesFromProperty(newLayer.property("ADBE Transform Group").property("ADBE Anchor Point"));
+  addEmptyKeyframeAtStart(newLayer);
+  return newLayer;
 }
 
 /*
@@ -114,6 +134,8 @@ dropRounding.onChange = function () {
       alert("Wrong rounding option!");
   }
 }
+
+dropRounding.onChange(); // force assign initial function
 
 function roundToNearestFrameMath(time, fps) {
   return (Math.round(time * fps) / fps);
