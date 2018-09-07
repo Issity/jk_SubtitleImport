@@ -87,14 +87,48 @@ if (SRTFile != null) {
   app.endUndoGroup();
 }
 }
+
 /*
 time (Number) - time in seconds
 fps (Number) - comp's framerate
-Aligns keyframe time with the nearest frame. Prevent keyframes between frames.
+Aligns keyframe time to exact frame. Prevent keyframes between frames.
+Function is dynamically re-assigned depending on type of reounding selected.
 */
-function roundToNearestFrame(time, fps) {
+var roundToNearestFrame = function (){};
+
+dropRounding.onChange = function () {
+  switch (dropRounding.selection.index) {
+    case 0:
+      roundToNearestFrame = roundToNearestFrameUp;
+    break;
+    case 1:
+      roundToNearestFrame = roundToNearestFrameDown;
+    break;
+    case 2:
+      roundToNearestFrame = roundToNearestFrameMath;
+    break;
+    case 3:
+      roundToNearestFrame = roundToNearestFrameNone;
+    break;
+    default:
+      alert("Wrong rounding option!");
+  }
+}
+
+function roundToNearestFrameMath(time, fps) {
   return (Math.round(time * fps) / fps);
-  // TODO add options for round up or down
+}
+
+function roundToNearestFrameUp(time, fps) {
+  return (Math.ceil(time * fps) / fps);
+}
+
+function roundToNearestFrameDown(time, fps) {
+  return (Math.floor(time * fps) / fps);
+}
+
+function roundToNearestFrameNone(time, fps) {
+  return time;
 }
 
 /*
