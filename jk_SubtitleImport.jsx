@@ -30,6 +30,7 @@ var templateSubLayer = null;
 var newSubLayer = null;
 var newSourceText = "";
 var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText, completeSegment, reachedEOF]
+var fps = 0;
 
 if (SRTFile != null) {
   SRTFile.open("r");
@@ -39,6 +40,7 @@ if (SRTFile != null) {
   app.beginUndoGroup("JK_SubtitleImport");
   if (checkIfTextLayerIsSelected() != false) {
     templateSubLayer = checkIfTextLayerIsSelected();
+    fps = templateSubLayer.containingComp.frameRate;
     newSubLayer = templateSubLayer.duplicate();
     templateSubLayer.enabled = false;
     templateSubLayer.selected = false;
@@ -60,6 +62,16 @@ if (SRTFile != null) {
 }
 
 /*
+time (Number) - time in seconds
+fps (Number) - comp's framerate
+Aligns keyframe time with the nearest frame. Prevent keyframes between frames.
+*/
+function roundToNearestFrame(time, fps) {
+  return (Math.round(time * fps) / fps);
+  // TODO add options for round up or down
+}
+
+/*
 txtLayer (TextLayer)
 Writes keyframe with no text at layer start. Otherwise some text might apppear
 before the first keyframe.
@@ -78,8 +90,8 @@ Adds keyframes with subtitle text at specified time.
 function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer) {
   var inIndex = 0;
   var outIndex = 0;
-  var inTime = subtitleSegment[1];
-  var outTime = subtitleSegment[2];
+  var inTime = roundToNearestFrame(subtitleSegment[1], fps);
+  var outTime = roundToNearestFrame(subtitleSegment[2], fps);
   var text = subtitleSegment[3];
   var sourceText = txtLayer.property("ADBE Text Properties").property("ADBE Text Document");
   // if (sourceText.numKeys != 0) {
@@ -105,7 +117,7 @@ function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer) {
 // alert(myTextLayer.property("Source Text").value);
   sourceText.setValueAtKey(inIndex, text);
   // sourceText.setValueAtKey(outIndex, myTextDocument);
-  sourceText.setValueAtKey(outIndex, "");
+  sourceText.setValueAtKey(outIndex, ""); // TODO replace with setValueAtTime?
 }
 
 /*
