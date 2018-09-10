@@ -27,10 +27,11 @@ var lineNumber = 0;
 var templateSubLayer = null;
 var newSubLayer = null;
 var newSourceText = "";
-var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText, completeSegment, reachedEOF]
+var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText, numberOfLines, completeSegment, reachedEOF]
 var fps = 0;
 var extendOrNot = null; // 0 - don't extend; 1 - extend
-var warnIfSubsLonger = null //
+var warnIfSubsLonger = null
+var textLeading = 0;
 
 var w = new Window("palette");
   w.grpAlign = w.add("group");
@@ -88,10 +89,13 @@ if (SRTFile != null) {
     newSourceText = newSubLayer.property("ADBE Text Properties").property("ADBE Text Document"); // redundant?
     // removeAllKeyframesFromProperty(newSourceText);
     // removeAllKeyframesFromProperty(newSubLayer.property("ADBE Anchor Point"));
+    textLeading = Math.round(newSubLayer.property("ADBE Text Properties").property("ADBE Text Document").value.leading);
+    textLeading = textLeading * dropAlign.selection.index / 2; // not very elegant shortcut
+    // Depending on alignment option, leading is multiplied by 0, 0.5 or 1
     do {
       subtitleSegment = readNextSubFromFile(SRTFile);
-      addSubtitleKeyframesToLayer(subtitleSegment, newSubLayer);
-    } while ((subtitleSegment[4]) && !(subtitleSegment[5]));
+      addSubtitleKeyframesToLayer(subtitleSegment, newSubLayer, textLeading);
+    } while ((subtitleSegment[5]) && !(subtitleSegment[6]));
     // repeat as long as complete segment can be read and we didn't reach EOF
     newSubLayer.enabled = true;
     // addEmptyKeyframeAtStart(newSubLayer);
@@ -123,6 +127,9 @@ function duplicateAndResetLayer(templateLayer, newName) {
   removeAllKeyframesFromProperty(newLayer.property("ADBE Text Properties").property("ADBE Text Document"));
   removeAllKeyframesFromProperty(newLayer.property("ADBE Transform Group").property("ADBE Anchor Point"));
   addEmptyKeyframeAtStart(newLayer);
+  newLayer.property("ADBE Transform Group").property("ADBE Anchor Point").addKey(0);
+  newLayer.property("ADBE Transform Group").property("ADBE Anchor Point").setInterpolationTypeAtKey(1, KeyframeInterpolationType.HOLD);
+  newLayer.property("ADBE Transform Group").property("ADBE Anchor Point").setValueAtKey(1, [0, 0]);
   return newLayer;
 }
 
@@ -188,13 +195,14 @@ OutTime and subtitle text.
 txtLayer (TextLayer)
 Adds keyframes with subtitle text at specified time.
 */
-function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer) {
+function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer, leading) {
   var inIndex = 0;
   var outIndex = 0;
   var inTime = roundToNearestFrame(subtitleSegment[1], fps);
   var outTime = roundToNearestFrame(subtitleSegment[2], fps);
   var text = subtitleSegment[3];
   var sourceText = txtLayer.property("ADBE Text Properties").property("ADBE Text Document");
+  var anchorPoint = txtLayer.property("ADBE Transform Group").property("ADBE Anchor Point");
   // if (sourceText.numKeys != 0) {
   //   var nearestInKey = sourceText.nearestKeyIndex(inTime);
   //   var nearestOutKey = sourceText.nearestKeyIndex(outTime);
@@ -219,6 +227,23 @@ function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer) {
   sourceText.setValueAtKey(inIndex, text);
   // sourceText.setValueAtKey(outIndex, myTextDocument);
   sourceText.setValueAtKey(outIndex, ""); // TODO replace with setValueAtTime?
+  addAnchorKeyFrame(txtLayer, inTime, subtitleSegment[4], leading);
+}
+
+
+/*
+txtLayer (TextLayer)
+time (number) - time to insert a keyframe
+lines (Number) - number of text lines
+leading (Number) - text leading
+*/
+function addAnchorKeyFrame(txtLayer, time, lines, leading) {
+  var leadingMultiplier = lines - 1;
+  var anchorPointProp = txtLayer.property("ADBE Transform Group").property("ADBE Anchor Point");
+  if (anchorPointProp.valueAtTime(time, true)[1] != (leadingMultiplier * leading)) {
+    var anchorIndex = anchorPointProp.addKey(time);
+    anchorPointProp.setValueAtKey(anchorIndex, [0, leading * leadingMultiplier]);
+  }
 }
 
 /*
@@ -367,6 +392,7 @@ function readNextSubFromFile(activeSRTFile) {
   var completeSegment = false;
   var reachedEOF = false;
   var step = 0; // 0 - subID; 1 - timestamp; 2 - subtitletext; 3 - end of sub
+  var numberOfLines = 0;
 
   while (!(activeSRTFile.eof) && (step != 3)) {
     buffer = activeSRTFile.readln();
@@ -398,13 +424,14 @@ function readNextSubFromFile(activeSRTFile) {
         if (subtitleText != "") completeSegment = true;
       } else {
         subtitleText += (subtitleText == "") ? buffer : "\n" + buffer;
+        numberOfLines++;
       }
       break;
     }
   }
   reachedEOF = activeSRTFile.eof;
   var timestamp = convertSRTTimestamp(SRTTimestamp);
-  currentSubtitle = [subID, timestamp[0], timestamp[1], subtitleText, completeSegment, reachedEOF];
+  currentSubtitle = [subID, timestamp[0], timestamp[1], subtitleText, numberOfLines, completeSegment, reachedEOF];
   return currentSubtitle;
 }
 
