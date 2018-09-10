@@ -32,20 +32,63 @@ var fps = 0;
 var extendOrNot = null; // 0 - don't extend; 1 - extend
 var warnIfSubsLonger = null
 var textLeading = 0;
+var SettingsSectionName = "JK_SubtitleImport";
+
+function readSettings() {
+  if (app.settings.haveSetting(SettingsSectionName, "Align")) {
+    dropAlign.selection = app.settings.getSetting(SettingsSectionName, "Align");
+  }
+  else {
+    dropAlign.selection = 1;
+  }
+
+  if (app.settings.haveSetting(SettingsSectionName, "Rounding")) {
+    dropRounding.selection = app.settings.getSetting(SettingsSectionName, "Rounding");
+  }
+  else {
+    dropRounding.selection = 2;
+  }
+
+  if (app.settings.haveSetting(SettingsSectionName, "Extend")) {
+    dropExtend.selection = app.settings.getSetting(SettingsSectionName, "Extend");
+  }
+  else {
+    dropExtend.selection = 0;
+  }
+
+  if (app.settings.haveSetting(SettingsSectionName, "ExtendWarn")) {
+    if (app.settings.getSetting(SettingsSectionName, "ExtendWarn") == "false") {
+      checkWarnExtend.value = false;
+    }
+    else {
+      checkWarnExtend.value = true;
+    }
+  }
+  else {
+    checkWarnExtend.value = true;
+  }
+}
+
+function saveSettings() {
+  app.settings.saveSetting(SettingsSectionName, "Align", dropAlign.selection.index);
+  app.settings.saveSetting(SettingsSectionName, "Rounding", dropRounding.selection.index);
+  app.settings.saveSetting(SettingsSectionName, "Extend", dropExtend.selection.index);
+  app.settings.saveSetting(SettingsSectionName, "ExtendWarn", checkWarnExtend.value);
+}
 
 var w = new Window("palette");
   w.grpAlign = w.add("group");
     w.grpAlign.add("statictext", undefined, "Alignment", {characters: 20, justify: "right"});
     var dropAlign = w.grpAlign.add("dropdownlist", undefined, ["Top", "Middle", "Bottom"]);
-    dropAlign.selection = 1;
+    // dropAlign.selection = 1;
   w.grpRounding = w.add("group");
     w.grpRounding.add('statictext {text: "Keyframe rounding"}');
     var dropRounding = w.grpRounding.add("dropdownlist", undefined, ["Round up", "Round down", "Round math", "No rounding"]);
-    dropRounding.selection = 2;
+    // dropRounding.selection = 2;
   w.grpExtend = w.add("group");
     w.grpExtend.add('statictext {text: "Extend timeline"}');
     var dropExtend = w.grpExtend.add("dropdownlist", undefined, ["Don't extend", "Extend till last keyframe"]);
-    dropExtend.selection = 0;
+    // dropExtend.selection = 0;
   w.grpWarnExtend = w.add("group");
     // w.grpWarnExtend.add('statictext {text: "Warn if subs are longer"}');
     var checkWarnExtend = w.grpWarnExtend.add("checkbox", undefined, "\u00A0Warn if subs are longer");
@@ -54,20 +97,26 @@ var w = new Window("palette");
 //  w.grpStatus = w.add("group");
 
   // w.grpButtons.butGo.onClick = dropAlert;
+  readSettings();
 w.show();
 
 w.grpButtons.butGo.onClick = main;
 
 checkWarnExtend.onClick = function () {
   warnIfSubsLonger = checkWarnExtend.value;
+  saveSettings();
 }
 checkWarnExtend.onClick(); // force assign initial value
 
 dropExtend.onChange = function () {
   extendOrNot = dropExtend.selection.index;
+  saveSettings();
 }
 dropExtend.onChange(); // force assign initial value
 
+dropAlign.onChange = function () {
+  saveSettings();
+}
 
 function main() {
   SRTFile = File.openDialog("Select SRT file", "SRT Subtitles:*.srt,All files:*.*");
@@ -158,6 +207,7 @@ dropRounding.onChange = function () {
     default:
       alert("Wrong rounding option!");
   }
+  saveSettings();
 }
 
 dropRounding.onChange(); // force assign initial function
