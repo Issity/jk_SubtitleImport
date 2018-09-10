@@ -20,8 +20,6 @@ parameters as selected template layer.
 
 */
 
-// TODO fix keyframes between frames
-
 var SRTFile = null;
 var SRTFileName = "";
 var subNumber = 0;
@@ -31,6 +29,8 @@ var newSubLayer = null;
 var newSourceText = "";
 var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText, completeSegment, reachedEOF]
 var fps = 0;
+var extendOrNot = null; // 0 - don't extend; 1 - extend
+var warnIfSubsLonger = null //
 
 var w = new Window("palette");
   w.grpAlign = w.add("group");
@@ -43,8 +43,11 @@ var w = new Window("palette");
     dropRounding.selection = 2;
   w.grpExtend = w.add("group");
     w.grpExtend.add('statictext {text: "Extend timeline"}');
-    var dropExtend = w.grpExtend.add("dropdownlist", undefined, ["Don't extend", "Extend till last keyframe", "Extend 5 sec past last keyframe"]);
+    var dropExtend = w.grpExtend.add("dropdownlist", undefined, ["Don't extend", "Extend till last keyframe"]);
     dropExtend.selection = 0;
+  w.grpWarnExtend = w.add("group");
+    // w.grpWarnExtend.add('statictext {text: "Warn if subs are longer"}');
+    var checkWarnExtend = w.grpWarnExtend.add("checkbox", undefined, "\u00A0Warn if subs are longer");
   w.grpButtons = w.add("group");
     w.grpButtons.butGo = w.add("button", undefined, "Go!");
 //  w.grpStatus = w.add("group");
@@ -53,6 +56,16 @@ var w = new Window("palette");
 w.show();
 
 w.grpButtons.butGo.onClick = main;
+
+checkWarnExtend.onClick = function () {
+  warnIfSubsLonger = checkWarnExtend.value;
+}
+checkWarnExtend.onClick(); // force assign initial value
+
+dropExtend.onChange = function () {
+  extendOrNot = dropExtend.selection.index;
+}
+dropExtend.onChange(); // force assign initial value
 
 
 function main() {
@@ -83,7 +96,12 @@ if (SRTFile != null) {
     newSubLayer.enabled = true;
     // addEmptyKeyframeAtStart(newSubLayer);
     setLayerOutToLastTextKeyframe(newSubLayer);
-    setCompEnd(newSubLayer);
+    if (warnIfSubsLonger && isLayerLongerThanComp(newSubLayer)) {
+      alert("Subtitles are longer than comp!");
+    }
+    if (extendOrNot == 1) {
+      setCompEnd(newSubLayer);
+    }
   }
   SRTFile.close();
   app.endUndoGroup();
@@ -136,6 +154,7 @@ dropRounding.onChange = function () {
 }
 
 dropRounding.onChange(); // force assign initial function
+// TODO init all such functions in one block
 
 function roundToNearestFrameMath(time, fps) {
   return (Math.round(time * fps) / fps);
@@ -206,13 +225,16 @@ function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer) {
 layer (Layer)
 comp (CompItem)
 Sets layer's IN point to comp's start time.
+// TODO Is it needed at all?
+// TODO Can comp be replaced with layer.containingComp?
 */
 function setLayerInToCompStart(layer, comp) {
   layer.inPoint = comp.displayStartTime;
 }
 
 /*
-TODO write description
+txtLayer (TextLayer) - subtitle layer to use as duration reference
+Extends comp, so it's at least as long as subtitles.
 TODO warn if comp is extended.
 */
 function setCompEnd(txtLayer) {
@@ -264,7 +286,8 @@ layer (layer)
 comp (CompItem)
 Checks if layer ends beyond comp's work area.
 */
-function isLayerLongerThanComp(layer, comp) {
+function isLayerLongerThanComp(layer) {
+  var comp = layer.containingComp;
   if (fixAEMath(layer.outPoint) > (fixAEMath(comp.workAreaStart + comp.workAreaDuration))) {
     return true;
   } else {
