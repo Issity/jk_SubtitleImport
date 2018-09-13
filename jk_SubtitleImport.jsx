@@ -1,5 +1,5 @@
 /*
-JK_SubtitleImport v0.1.0
+JK_SubtitleImport v0.1.1
 Copyright 2018 Jakub Kowalski
 
 This program is free software: you can redistribute it and/or modify
@@ -22,12 +22,12 @@ parameters as selected template layer.
 
 var SRTFile = null;
 var SRTFileName = "";
-var subNumber = 0;
-var lineNumber = 0;
 var templateSubLayer = null;
 var newSubLayer = null;
 var newSourceText = "";
-var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText, numberOfLines, completeSegment, reachedEOF]
+var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText, numberOfLines, completeSegment, reachedEOF] // redundant?
+var allSubtitles = [];
+var subsTotal = 0;
 var fps = 0;
 var extendOrNot = null; // 0 - don't extend; 1 - extend
 var warnIfSubsLonger = null
@@ -119,6 +119,10 @@ dropAlign.onChange = function () {
 }
 
 function main() {
+  var i = 0;
+  allSubtitles = [];
+  subsTotal = 0;
+
   SRTFile = File.openDialog("Select SRT file", "SRT Subtitles:*.srt,All files:*.*");
 if (SRTFile != null) {
   SRTFile.open("r");
@@ -126,7 +130,7 @@ if (SRTFile != null) {
   SRTFileName = SRTFile.displayName;
 
   app.beginUndoGroup("JK_SubtitleImport");
-  if (checkIfTextLayerIsSelected() != false) {
+  if (checkIfTextLayerIsSelected() != false) { // TODO invoke checkIfTextLayerIsSelected only once
     templateSubLayer = checkIfTextLayerIsSelected();
     fps = templateSubLayer.containingComp.frameRate;
     newSubLayer = duplicateAndResetLayer(templateSubLayer, SRTFileName);
@@ -141,11 +145,13 @@ if (SRTFile != null) {
     textLeading = Math.round(newSubLayer.property("ADBE Text Properties").property("ADBE Text Document").value.leading);
     textLeading = textLeading * dropAlign.selection.index / 2; // not very elegant shortcut
     // Depending on alignment option, leading is multiplied by 0, 0.5 or 1
+
     do {
-      subtitleSegment = readNextSubFromFile(SRTFile);
-      addSubtitleKeyframesToLayer(subtitleSegment, newSubLayer, textLeading);
-    } while ((subtitleSegment[5]) && !(subtitleSegment[6]));
+      allSubtitles[subsTotal] = readNextSubFromFile(SRTFile);
+      subsTotal++;
+    } while ((allSubtitles[subsTotal - 1][5]) && !(allSubtitles[subsTotal - 1][6]));
     // repeat as long as complete segment can be read and we didn't reach EOF
+    addSubtitlesToLayer(allSubtitles, newSubLayer, textLeading);
     newSubLayer.enabled = true;
     // addEmptyKeyframeAtStart(newSubLayer);
     setLayerOutToLastTextKeyframe(newSubLayer);
@@ -244,6 +250,8 @@ subtitleSegment ([Number, Number, Number, String]) - array with subID, InTime,
 OutTime and subtitle text.
 txtLayer (TextLayer)
 Adds keyframes with subtitle text at specified time.
+
+OBSOLETE
 */
 function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer, leading) {
   var inIndex = 0;
@@ -253,39 +261,56 @@ function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer, leading) {
   var text = subtitleSegment[3];
   var sourceText = txtLayer.property("ADBE Text Properties").property("ADBE Text Document");
   var anchorPoint = txtLayer.property("ADBE Transform Group").property("ADBE Anchor Point");
-  // if (sourceText.numKeys != 0) {
-  //   var nearestInKey = sourceText.nearestKeyIndex(inTime);
-  //   var nearestOutKey = sourceText.nearestKeyIndex(outTime);
-    // if (sourceText.keyTime(nearestInKey) == inTime) {
-    //   inIndex = nearestInKey;
-    // } else {
-    //   inIndex = sourceText.addKey(inTime);
-    // }
-    // if (sourceText.keyTime(nearestOutKey) == outTime) {
-    //   outIndex = nearestOutKey;
-    // } else {
-    //   outIndex = sourceText.addKey(outTime);
-    // }
-// }
   inIndex = sourceText.addKey(inTime);
   outIndex = sourceText.addKey(outTime);
-  // var myTextDocument = sourceText.value;
-  // myTextDocument.fontSize = 10;
-  // myTextDocument.text = "foobar";
-// myTextLayer.property("Source Text").setValue(myTextDocument);
-// alert(myTextLayer.property("Source Text").value);
   sourceText.setValueAtKey(inIndex, text);
-  // sourceText.setValueAtKey(outIndex, myTextDocument);
   sourceText.setValueAtKey(outIndex, ""); // TODO replace with setValueAtTime?
   addAnchorKeyFrame(txtLayer, inTime, subtitleSegment[4], leading);
 }
 
+/*
+subtitles (array of subtitleSegment)
+txtLayer (TextLayer)
+leading (Number)
+
+Adding keyframes one by one is slower with each new keyframe. Much faster
+solution is to add all keyframes at once using setValuesAtTimes.
+http://omino.com/pixelblog/2009/08/04/ae-scripting-notes/
+*/
+function addSubtitlesToLayer(subtitles, txtLayer, leading) {
+  var i = 0;
+  var arrTextTimes = [];
+  var arrText = [];
+  var arrAnchorTimes = [0];
+  var arrAnchor = [[0, 0]];
+  var sourceText = txtLayer.property("ADBE Text Properties").property("ADBE Text Document");
+  var anchorPoint = txtLayer.property("ADBE Transform Group").property("ADBE Anchor Point");
+  var roundedIN = 0; // rounded IN time, saved so it's not calculated twice
+  var anchorValue = [0, 0];
+  var totalAnchors = 1; // index of last Anchor keyframe
+  for (i = 0; i < subsTotal; i++) {
+    roundedIN = roundToNearestFrame(subtitles[i][1], fps);
+    arrTextTimes[i * 2] = roundedIN;
+    arrText[i * 2] = subtitles[i][3];
+    arrTextTimes[i * 2 + 1] = roundToNearestFrame(subtitles[i][2], fps);
+    arrText[i * 2 + 1] = "";
+    anchorValue = [0, (subtitles[i][4] - 1) * leading];
+    if (arrAnchor[totalAnchors - 1][1] != anchorValue[1]) {
+      totalAnchors = arrAnchorTimes.push(roundedIN);
+      arrAnchor.push(anchorValue);
+    }
+  }
+  sourceText.setValuesAtTimes(arrTextTimes, arrText);
+  anchorPoint.setValuesAtTimes(arrAnchorTimes, arrAnchor);
+}
 
 /*
 txtLayer (TextLayer)
 time (number) - time to insert a keyframe
 lines (Number) - number of text lines
 leading (Number) - text leading
+
+OBSOLETE
 */
 function addAnchorKeyFrame(txtLayer, time, lines, leading) {
   var leadingMultiplier = lines - 1;
