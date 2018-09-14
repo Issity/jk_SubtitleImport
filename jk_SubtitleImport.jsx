@@ -76,20 +76,27 @@ function saveSettings() {
   app.settings.saveSetting(SettingsSectionName, "ExtendWarn", checkWarnExtend.value);
 }
 
-var w = new Window("palette");
+var w = new Window('palette {alignChildren: "fill"}');
   w.grpAlign = w.add("group");
+    w.grpAlign.orientation = "column";
     w.grpAlign.add("statictext", undefined, "Alignment", {characters: 20, justify: "right"});
     var dropAlign = w.grpAlign.add("dropdownlist", undefined, ["Top", "Middle", "Bottom"]);
     // dropAlign.selection = 1;
+  w.sep1 = w.add("panel");
   w.grpRounding = w.add("group");
+  w.grpRounding.orientation = "column";
     w.grpRounding.add('statictext {text: "Keyframe rounding"}');
     var dropRounding = w.grpRounding.add("dropdownlist", undefined, ["Round up", "Round down", "Round math", "No rounding"]);
     // dropRounding.selection = 2;
+  w.sep2 = w.add("panel");
   w.grpExtend = w.add("group");
+  w.grpExtend.orientation = "column";
     w.grpExtend.add('statictext {text: "Extend timeline"}');
     var dropExtend = w.grpExtend.add("dropdownlist", undefined, ["Don't extend", "Extend till last keyframe"]);
     // dropExtend.selection = 0;
+  w.sep3 = w.add("panel");
   w.grpWarnExtend = w.add("group");
+  w.grpWarnExtend.orientation = "column";
     // w.grpWarnExtend.add('statictext {text: "Warn if subs are longer"}');
     var checkWarnExtend = w.grpWarnExtend.add("checkbox", undefined, "\u00A0Warn if subs are longer");
   w.grpButtons = w.add("group");
