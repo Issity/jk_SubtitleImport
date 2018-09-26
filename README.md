@@ -2,7 +2,7 @@
 After Effects script for importing SRT subtitles.
 
 ## How to use
-Create a template Text layer - subtitles will have the same formatting.
+Create a text layer template - subtitles will have the same formatting.
 Select it.
 Run the script.
 Select SRT file.
@@ -12,8 +12,10 @@ Enjoy. Or [report a bug](https://github.com/Issity/jk_SubtitleImport/issues/new)
 Well... It's rather obvious. If have SRT subtitles and want to put them in your video, you just use this script instead of trying to find someone who would copy all that text into AE and manually adjust timings in exchange for some moneys.
 
 ## Features
-It somewhat works. That's it for now.
-More to be added.
+- multi-line subs can be aligned to top/bottom/center
+- text keyframes can be placed at exact time (between video frames) or aligned to video frames (different methods available)
+- (option) extend comp if subs are longer
+- (option) warn if subs are longer than comp
 
 ## Disclaimer
 This script is very rough, created for my own needs. There's only minimal error checking. Script may crash if used in unexpected manner.
