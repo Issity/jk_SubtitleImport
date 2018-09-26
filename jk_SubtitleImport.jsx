@@ -24,7 +24,7 @@ var SRTFile = null;
 var SRTFileName = "";
 var templateSubLayer = null;
 var newSubLayer = null;
-var newSourceText = "";
+// var newSourceText = "";
 var subtitleSegment = []; // [subID, InTime, OutTime, subtitleText, numberOfLines, completeSegment, reachedEOF] // redundant?
 var allSubtitles = [];
 var subsTotal = 0;
@@ -131,47 +131,39 @@ function main() {
   subsTotal = 0;
 
   SRTFile = File.openDialog("Select SRT file", "SRT Subtitles:*.srt,All files:*.*");
-if (SRTFile != null) {
-  SRTFile.open("r");
-  SRTFile.encoding = "UTF-8";
-  SRTFileName = SRTFile.displayName;
+  if (SRTFile != null) {
+    SRTFile.open("r");
+    SRTFile.encoding = "UTF-8";
+    SRTFileName = SRTFile.displayName;
 
-  app.beginUndoGroup("JK_SubtitleImport");
-  if (checkIfTextLayerIsSelected() != false) { // TODO invoke checkIfTextLayerIsSelected only once
-    templateSubLayer = checkIfTextLayerIsSelected();
-    fps = templateSubLayer.containingComp.frameRate;
-    newSubLayer = duplicateAndResetLayer(templateSubLayer, SRTFileName);
-    // newSubLayer = templateSubLayer.duplicate();
-    // newSubLayer.moveToBeginning();
-    // templateSubLayer.enabled = false;
-    // templateSubLayer.selected = false;
-    // newSubLayer.name = SRTFileName;
-    newSourceText = newSubLayer.property("ADBE Text Properties").property("ADBE Text Document"); // redundant?
-    // removeAllKeyframesFromProperty(newSourceText);
-    // removeAllKeyframesFromProperty(newSubLayer.property("ADBE Anchor Point"));
-    textLeading = Math.round(newSubLayer.property("ADBE Text Properties").property("ADBE Text Document").value.leading);
-    textLeading = textLeading * dropAlign.selection.index / 2; // not very elegant shortcut
-    // Depending on alignment option, leading is multiplied by 0, 0.5 or 1
+    app.beginUndoGroup("JK_SubtitleImport");
+    if (checkIfTextLayerIsSelected() != false) { // TODO invoke checkIfTextLayerIsSelected only once
+      templateSubLayer = checkIfTextLayerIsSelected();
+      fps = templateSubLayer.containingComp.frameRate;
+      newSubLayer = duplicateAndResetLayer(templateSubLayer, SRTFileName);
+      // newSourceText = newSubLayer.property("ADBE Text Properties").property("ADBE Text Document"); // redundant?
+      textLeading = Math.round(newSubLayer.property("ADBE Text Properties").property("ADBE Text Document").value.leading);
+      textLeading = textLeading * dropAlign.selection.index / 2; // not very elegant shortcut
+      // Depending on alignment option, leading is multiplied by 0, 0.5 or 1
 
-    do {
-      allSubtitles[subsTotal] = readNextSubFromFile(SRTFile);
-      subsTotal++;
-    } while ((allSubtitles[subsTotal - 1][5]) && !(allSubtitles[subsTotal - 1][6]));
-    // repeat as long as complete segment can be read and we didn't reach EOF
-    addSubtitlesToLayer(allSubtitles, newSubLayer, textLeading);
-    newSubLayer.enabled = true;
-    // addEmptyKeyframeAtStart(newSubLayer);
-    setLayerOutToLastTextKeyframe(newSubLayer);
-    if (warnIfSubsLonger && isLayerLongerThanComp(newSubLayer)) {
-      alert("Subtitles are longer than comp!");
+      do {
+        allSubtitles[subsTotal] = readNextSubFromFile(SRTFile);
+        subsTotal++;
+      } while ((allSubtitles[subsTotal - 1][5]) && !(allSubtitles[subsTotal - 1][6]));
+      // repeat as long as complete segment can be read and we didn't reach EOF
+      addSubtitlesToLayer(allSubtitles, newSubLayer, textLeading);
+      newSubLayer.enabled = true;
+      setLayerOutToLastTextKeyframe(newSubLayer);
+      if (warnIfSubsLonger && isLayerLongerThanComp(newSubLayer)) {
+        alert("Subtitles are longer than comp!");
+      }
+      if (extendOrNot == 1) {
+        setCompEnd(newSubLayer);
+      }
     }
-    if (extendOrNot == 1) {
-      setCompEnd(newSubLayer);
-    }
+    SRTFile.close();
+    app.endUndoGroup();
   }
-  SRTFile.close();
-  app.endUndoGroup();
-}
 }
 
 /*
@@ -253,29 +245,6 @@ function addEmptyKeyframeAtStart(txtLayer) {
 }
 
 /*
-subtitleSegment ([Number, Number, Number, String]) - array with subID, InTime,
-OutTime and subtitle text.
-txtLayer (TextLayer)
-Adds keyframes with subtitle text at specified time.
-
-OBSOLETE
-*/
-function addSubtitleKeyframesToLayer(subtitleSegment, txtLayer, leading) {
-  var inIndex = 0;
-  var outIndex = 0;
-  var inTime = roundToNearestFrame(subtitleSegment[1], fps);
-  var outTime = roundToNearestFrame(subtitleSegment[2], fps);
-  var text = subtitleSegment[3];
-  var sourceText = txtLayer.property("ADBE Text Properties").property("ADBE Text Document");
-  var anchorPoint = txtLayer.property("ADBE Transform Group").property("ADBE Anchor Point");
-  inIndex = sourceText.addKey(inTime);
-  outIndex = sourceText.addKey(outTime);
-  sourceText.setValueAtKey(inIndex, text);
-  sourceText.setValueAtKey(outIndex, ""); // TODO replace with setValueAtTime?
-  addAnchorKeyFrame(txtLayer, inTime, subtitleSegment[4], leading);
-}
-
-/*
 subtitles (array of subtitleSegment)
 txtLayer (TextLayer)
 leading (Number)
@@ -312,23 +281,6 @@ function addSubtitlesToLayer(subtitles, txtLayer, leading) {
 }
 
 /*
-txtLayer (TextLayer)
-time (number) - time to insert a keyframe
-lines (Number) - number of text lines
-leading (Number) - text leading
-
-OBSOLETE
-*/
-function addAnchorKeyFrame(txtLayer, time, lines, leading) {
-  var leadingMultiplier = lines - 1;
-  var anchorPointProp = txtLayer.property("ADBE Transform Group").property("ADBE Anchor Point");
-  if (anchorPointProp.valueAtTime(time, true)[1] != (leadingMultiplier * leading)) {
-    var anchorIndex = anchorPointProp.addKey(time);
-    anchorPointProp.setValueAtKey(anchorIndex, [0, leading * leadingMultiplier]);
-  }
-}
-
-/*
 layer (Layer)
 comp (CompItem)
 Sets layer's IN point to comp's start time.
@@ -342,7 +294,6 @@ function setLayerInToCompStart(layer, comp) {
 /*
 txtLayer (TextLayer) - subtitle layer to use as duration reference
 Extends comp, so it's at least as long as subtitles.
-TODO warn if comp is extended.
 */
 function setCompEnd(txtLayer) {
   var comp = txtLayer.containingComp;
@@ -357,7 +308,8 @@ function setCompEnd(txtLayer) {
 }
 
 /*
-TODO write description
+txtLayer (TextLayer) - subtitle layer
+Aligns layer out to the last Source Text keyframe
 */
 function setLayerOutToLastTextKeyframe(txtLayer) {
   var lastKeyIndex = txtLayer.property("ADBE Text Properties").property("ADBE Text Document").numKeys;
@@ -382,10 +334,6 @@ function isCompStartAtZero(comp) {
   } else {
     return false;
   }
-}
-
-function isSRTLongerThanComp(lastTimecode, comp) {
-  //TODO
 }
 
 /*
@@ -461,7 +409,12 @@ function removeAllKeyframesFromProperty(property) {
 }
 
 /*
-TODO write description
+activeSRTFile (File) - SRT file
+Reads a subtitle segment from file.
+Subtitle segment consists of subtitle ID, timestamp and text. Text can be in
+multiple lines. Empty line denotes end of subtitle.
+Returns an array consisting of [subID, InTime, OutTime, subtitleText,
+numberOfLines, completeSegment, reachedEOF]
 */
 function readNextSubFromFile(activeSRTFile) {
   var buffer = "";
