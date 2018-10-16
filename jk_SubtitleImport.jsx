@@ -46,7 +46,7 @@ function readSettings() {
     dropRounding.selection = app.settings.getSetting(SettingsSectionName, "Rounding");
   }
   else {
-    dropRounding.selection = 2;
+    dropRounding.selection = 1;
   }
 
   if (app.settings.haveSetting(SettingsSectionName, "Extend")) {
