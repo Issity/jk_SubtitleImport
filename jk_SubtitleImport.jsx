@@ -76,7 +76,7 @@ function saveSettings() {
   app.settings.saveSetting(SettingsSectionName, "ExtendWarn", checkWarnExtend.value);
 }
 
-var w = new Window('palette {alignChildren: "fill"}');
+var w = (this instanceof Panel) ? this : new Window('palette {alignChildren: "fill"}');
   w.grpAlign = w.add("group");
     w.grpAlign.orientation = "column";
     w.grpAlign.add("statictext", undefined, "Alignment", {characters: 20, justify: "right"});
@@ -105,7 +105,11 @@ var w = new Window('palette {alignChildren: "fill"}');
 
   // w.grpButtons.butGo.onClick = dropAlert;
   readSettings();
-w.show();
+  if (w instanceof Window) {
+      w.show();
+  } else {
+    w.layout.layout(true)
+  }
 
 w.grpButtons.butGo.onClick = main;
 
