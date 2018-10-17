@@ -21,6 +21,16 @@ Well... It's rather obvious. If have SRT subtitles and want to put them in your 
 This script is very rough, created for my own needs. There's only minimal error checking. Script may crash if used in unexpected manner.
 If it's useful for you too - that's great.
 
+## Donate [![Donate](https://img.shields.io/badge/send-donation-brightgreen.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SCQP22FPELH4J)
+Found this script useful? It saved you time? Or money? Maybe both?
+
+[You can pay for this script.  Name your own price.](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SCQP22FPELH4J)
+
+Also accepting:
+* Bitcoin (BTC) **1JKAXVQomNDvg9v7bEKqJAnpnvR2pZfzFQ**
+* BitGold (BTG) **GXb6c5CunKSeo2PjQMnXo4vQHshday5MVn**
+* BitcoinCash (BCC) **qq28e7cf5kul9tapacusywy2036s6fqek5n9zgg032**
+
 ## Found a bug? Want a feature?
 You can report a bug or suggest a feature by creating a [New Issue](https://github.com/Issity/jk_SubtitleImport/issues/new).
 I might do something with it but won't promise.
