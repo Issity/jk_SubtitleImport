@@ -32,7 +32,9 @@ var fps = 0;
 var extendOrNot = null; // 0 - don't extend; 1 - extend
 var warnIfSubsLonger = null
 var textLeading = 0;
-var SettingsSectionName = "JK_SubtitleImport";
+var scriptName = "JK_SubtitleImport";
+var scriptVer = "0.1.2";
+var SettingsSectionName = scriptName;
 
 function readSettings() {
   if (app.settings.haveSetting(SettingsSectionName, "Align")) {
@@ -76,7 +78,7 @@ function saveSettings() {
   app.settings.saveSetting(SettingsSectionName, "ExtendWarn", checkWarnExtend.value);
 }
 
-var w = (this instanceof Panel) ? this : new Window('palette {alignChildren: "fill"}');
+var w = (this instanceof Panel) ? this : new Window('palette {text: "' + scriptName + ' v' + scriptVer + '", alignChildren: "fill"}');
   w.grpAlign = w.add("group");
     w.grpAlign.orientation = "column";
     w.grpAlign.add("statictext", undefined, "Alignment", {characters: 20, justify: "right"});
