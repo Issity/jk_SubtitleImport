@@ -1,5 +1,5 @@
 /*
-JK_SubtitleImport v0.1.1
+JK_SubtitleImport v0.1.2
 Copyright 2018 Jakub Kowalski
 
 This program is free software: you can redistribute it and/or modify
@@ -260,13 +260,28 @@ function addSubtitlesToLayer(subtitles, txtLayer, leading) {
   var sourceText = txtLayer.property("ADBE Text Properties").property("ADBE Text Document");
   var anchorPoint = txtLayer.property("ADBE Transform Group").property("ADBE Anchor Point");
   var roundedIN = 0; // rounded IN time, saved so it's not calculated twice
+  var roundedOUT = 0;
+  var prevOUT = 0;
   var anchorValue = [0, 0];
   var totalAnchors = 1; // index of last Anchor keyframe
   for (i = 0; i < subsTotal; i++) {
+    prevOUT = roundedOUT;
     roundedIN = roundToNearestFrame(subtitles[i][1], fps);
+    roundedOUT = roundToNearestFrame(subtitles[i][2], fps);
+    //check for timestamp overlaps
+    if (prevOUT > roundedIN) {
+      roundedIN = prevOUT;
+      addMarker(txtLayer, roundedIN, "WARNINIG: Overlap with previous subtitle fixed");
+    }
+    if (roundedIN > roundedOUT) {
+      var tmp = roundedOUT;
+      roundedOUT = roundedIN;
+      roundedIN = tmp;
+      addMarker(txtLayer, roundedOUT, "WARNING: Subtitle ends before it starts. In and Out reversed.");
+    }
     arrTextTimes[i * 2] = roundedIN;
     arrText[i * 2] = subtitles[i][3];
-    arrTextTimes[i * 2 + 1] = roundToNearestFrame(subtitles[i][2], fps);
+    arrTextTimes[i * 2 + 1] = roundedOUT;
     arrText[i * 2 + 1] = "";
     anchorValue = [0, (subtitles[i][4] - 1) * leading];
     if (arrAnchor[totalAnchors - 1][1] != anchorValue[1]) {
@@ -276,6 +291,11 @@ function addSubtitlesToLayer(subtitles, txtLayer, leading) {
   }
   sourceText.setValuesAtTimes(arrTextTimes, arrText);
   anchorPoint.setValuesAtTimes(arrAnchorTimes, arrAnchor);
+}
+
+function addMarker(layer, time, text) {
+  var myMarker = new MarkerValue(text);
+  layer.property("ADBE Marker").setValueAtTime(time, myMarker);
 }
 
 /*
